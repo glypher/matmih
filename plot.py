@@ -72,8 +72,8 @@ class PlotBuilder:
     def get_plot():
         return plt
 
-    def create_subplots(self, rows, cols, fig_size=(18, 18)):
-        self.__figures.append(plt.figure(figsize=fig_size))
+    def create_subplots(self, rows, cols, fig_size=(18, 18), **kwargs):
+        self.__figures.append(plt.figure(figsize=fig_size, **kwargs))
         self._subplot_idx = 0
         self._subplot_size = [rows, cols]
 
@@ -94,11 +94,6 @@ class PlotBuilder:
         else:
             self._subplot_idx += 1
             self._current_subplot = self.__figures[-1].add_subplot(*self._subplot_size, self._subplot_idx, **kwargs)
-
-        self._current_subplot.set_xlim([10**10, -10**10])
-        self._current_subplot.set_ylim([10**10, -10**10])
-        if 'projection' in kwargs.keys():
-            self._current_subplot.set_zlim([10**10, -10**10])
 
         return self._current_subplot
 
@@ -218,19 +213,13 @@ class PlotBuilder:
 
         return self
 
-    def create_histograms(self, pd_categoricals, titles, bins='auto', fig_size=(13, 6)):
+    def create_histograms(self, categories, titles, bins='auto'):
         """
         Creates a histogram based on x_data
         """
-        fig, ax = plt.subplots(figsize=fig_size)
-        self.__figures.append(fig)
-        subplot_no = len(pd_categoricals)
-        ax.axes.get_xaxis().set_visible(False)
-        ax.axes.get_yaxis().set_visible(False)
-
         colors = {}
-        for i in range(len(pd_categoricals)):
-            data = pd_categoricals[i]
+        for i in range(len(categories)):
+            data = categories[i]
             if isinstance(data, pd.core.series.Series):
                 data = data[data.isnull() == False].value_counts()
             else:
@@ -244,7 +233,9 @@ class PlotBuilder:
             if len(colors) != len(labels):
                 colors = dict(zip(labels, self._get_color(len(labels))))
 
-            sp = fig.add_subplot(1, subplot_no, i + 1)
+            sp = self._get_next_plot()
+            sp.axes.get_xaxis().set_visible(False)
+            sp.axes.get_yaxis().set_visible(False)
             plt.bar(labels, data, color=[colors[l] for l in labels])
             plt.xticks(labels, rotation=90)
             sp.set_title(titles[i])
@@ -256,19 +247,11 @@ class PlotBuilder:
         """
         Creates a grid of images
         """
-        subplot_cols = min(len(images), 6)
-        subplot_rows = math.ceil(len(images) / subplot_cols)
-        fig_size = kwargs.pop('figsize', 3)
-        dpi = kwargs.pop('dpi', 80)
-
-        fig = plt.figure(figsize=(subplot_cols * fig_size, subplot_rows * fig_size), dpi=dpi)
-        self.__figures.append(fig)
-
         if len(images) != len(titles):
             raise(Exception("Image and title list must be the same"))
 
         for i in range(len(images)):
-            sp = fig.add_subplot(subplot_rows, subplot_cols, i + 1)
+            sp = self._get_next_plot()
             sp.set_title(titles[i])
             image = images[i]
             if isinstance(image, str):
