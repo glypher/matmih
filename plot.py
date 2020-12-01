@@ -234,8 +234,6 @@ class PlotBuilder:
                 colors = dict(zip(labels, self._get_color(len(labels))))
 
             sp = self._get_next_plot()
-            sp.axes.get_xaxis().set_visible(False)
-            sp.axes.get_yaxis().set_visible(False)
             plt.bar(labels, data, color=[colors[l] for l in labels])
             plt.xticks(labels, rotation=90)
             sp.set_title(titles[i])
