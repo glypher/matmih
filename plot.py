@@ -213,7 +213,7 @@ class PlotBuilder:
 
         return self
 
-    def create_histograms(self, categories, titles, bins='auto'):
+    def create_histograms(self, categories, titles):
         """
         Creates a histogram based on x_data
         """
@@ -221,15 +221,15 @@ class PlotBuilder:
         for i in range(len(categories)):
             data = categories[i]
             if isinstance(data, pd.core.series.Series):
-                data = data[data.isnull() == False].value_counts()
+                data = data[data.isnull() == False].value_counts(sort=False)
+                labels = [name for name in data.keys()]
             else:
                 data, labels = data
                 class_id, data = np.unique(data, return_counts=True)
                 sort_freq = np.argsort(-data)
-                data = dict(zip([labels[c] for c in class_id[sort_freq]], data[sort_freq]))
+                data = data[sort_freq]
+                labels = [labels[c] for c in class_id[sort_freq]]
 
-            labels = [name for name in data.keys()]
-            data = [data[name] for name in labels]
             if len(colors) != len(labels):
                 colors = dict(zip(labels, self._get_color(len(labels))))
 

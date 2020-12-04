@@ -36,18 +36,22 @@ class Image:
 
 
 class ImageGenerator:
-    def __init__(self, data_set: DataSet, balanced=False, **kwargs):
-        self._data_set = data_set
+    def __init__(self, features, targets, balanced=False, power=1, **kwargs):
+        self._features = features
+        self._targets = targets
+        self._classes = np.unique(self._targets)
         self._image_generator = tf.keras.preprocessing.image.ImageDataGenerator(**kwargs)
 
         # Fit the image generator on the training set
-        self._image_generator.fit(self._data_set.train_features)
+        self._image_generator.fit(self._features)
 
         # compute the class probabilities
         self._balanced = balanced
         if self._balanced:
             class_values = sklearn.utils.class_weight.compute_class_weight('balanced',
-                                                                           data_set.classes, data_set.train_target)
+                                                                           classes=self._classes, y=self._targets)
+
+            class_values = np.power(class_values, power)
             self._target_prob = sklearn.utils.extmath.softmax([class_values])[0]
 
     def generate(self, iterations=100, batch_size=32):
@@ -55,17 +59,17 @@ class ImageGenerator:
             iterations -= 1
             if self._balanced:
                 # take 3 times more batches
-                image_b, target_b = next(self._image_generator.flow(self._data_set.train_features,
-                                                                    self._data_set.train_target,
+                image_b, target_b = next(self._image_generator.flow(self._features,
+                                                                    self._targets,
                                                                     batch_size=3 * batch_size))
                 # select targets from the larger batch with probabilities taken from the target distribution
-                image = np.zeros((batch_size, *self._data_set.train_features.shape[1:]))
+                image = np.zeros((batch_size, *self._features.shape[1:]))
                 target = np.zeros(batch_size)
                 for i in range(batch_size):
                     cid = None
                     img_id = -1
                     while img_id < 0:
-                        cid = np.random.choice(len(self._data_set.classes), p=self._target_prob)
+                        cid = np.random.choice(len(self._classes), p=self._target_prob)
                         img_id = np.argwhere(target_b==cid)
                         img_id = img_id[0] if len(img_id) > 0 else -1
 
@@ -73,8 +77,8 @@ class ImageGenerator:
                     target[i] = cid
                     image[i] = image_b[img_id]
             else:
-                image, target = next(self._image_generator.flow(self._data_set.train_features,
-                                                                self._data_set.train_target,
+                image, target = next(self._image_generator.flow(self._features,
+                                                                self._targets,
                                                                 batch_size=batch_size))
 
             yield image.astype(np.uint8), target.astype(np.uint8)
