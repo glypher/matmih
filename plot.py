@@ -224,11 +224,10 @@ class PlotBuilder:
                 data = data[data.isnull() == False].value_counts(sort=False)
                 labels = [name for name in data.keys()]
             else:
-                data, labels = data
-                class_id, data = np.unique(data, return_counts=True)
-                sort_freq = np.argsort(-data)
-                data = data[sort_freq]
-                labels = [labels[c] for c in class_id[sort_freq]]
+                data, no_bins = data
+                data, bin_edges = np.histogram(data, bins=no_bins)
+                bin_edges = bin_edges[::2] + bin_edges[1::2]
+                labels = bin_edges.astype(int)
 
             if len(colors) != len(labels):
                 colors = dict(zip(labels, self._get_color(len(labels))))
