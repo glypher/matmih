@@ -119,14 +119,15 @@ class PlotBuilder:
                     i += 1
                     limits[1][0] = min(limits[1][0], np.min(y_values))
                     limits[1][1] = max(limits[1][1], np.max(y_values))
-                    sp.plot(x_values, y_values, color=color, linewidth=2,
+                    sp.plot(x_values[0:len(y_values)], y_values, color=color, linewidth=2,
                             linestyle='--' if i % 2 else '-', **self._options)
             else:
                 has_legend = True
                 y_values, y_title = data
                 limits[1][0] = min(limits[1][0], np.min(y_values))
                 limits[1][1] = max(limits[1][1], np.max(y_values))
-                sp.plot(x_values, y_values, label=y_title, color=color, linewidth=2, linestyle='-', **self._options)
+                sp.plot(x_values[0:len(y_values)], y_values, label=y_title, color=color,
+                        linewidth=2, linestyle='-', **self._options)
 
         sp.set_xlim(limits[0])
         sp.set_xlabel(x_label)

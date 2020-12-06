@@ -117,12 +117,12 @@ class ModelEvaluation:
             train = [h.history(metric, DataType.TRAIN) for h in histories]
             val = [h.history(metric, DataType.VALIDATION) for h in histories]
             data.append([[u, v] for u, v in zip(train, val)])
-        epochs = len(data[0][0][0])
+        epochs = max([len(data[0][i][0]) for i in range(len(histories))])
 
         pb = PlotBuilder().create_subplots(len(metrics), 2, fig_size=(18, 12))
         pb.set_options(color=randomcolor.RandomColor().generate(count=len(data[0])) * len(metrics))
-        epoch = range(epochs)
         for i, metric in enumerate(metrics):
-            pb.create_plot('Training and Validation {} - '.format(metric) + title, (epoch, 'epoch'),
+            pb.create_plot('Training and Validation {} - '.format(metric) + title,
+                           (range(epochs), 'epoch'),
                            *data[i])
         pb.show()
