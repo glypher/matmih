@@ -116,7 +116,16 @@ class ModelEvaluation:
         for metric in metrics:
             train = [h.history(metric, DataType.TRAIN) for h in histories]
             val = [h.history(metric, DataType.VALIDATION) for h in histories]
-            data.append([[u, v] for u, v in zip(train, val)])
+            metric_list = []
+            for u, v in zip(train, val):
+                if u is not None and v is not None:
+                    metric_list.append([u, v])
+                elif u is None:
+                    metric_list.append([v])
+                elif v is None:
+                    metric_list.append([u])
+
+            data.append(metric_list)
         epochs = max([len(data[0][i][0]) for i in range(len(histories))])
 
         pb = PlotBuilder().create_subplots(len(metrics), 2, fig_size=(18, 12))

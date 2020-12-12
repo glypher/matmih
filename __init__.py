@@ -16,6 +16,7 @@ from .data import DataSet
 from .features import ModelDataSet, DataModel
 from .hyperparameters import HyperParamsLookup
 from .evaluation import ModelEvaluation
+from .nlp import PreprocessPipeline
 
 __all__ = [
     'PlotBuilder',
@@ -33,5 +34,6 @@ __all__ = [
     'ModelDataSet',
     'DataModel',
     'HyperParamsLookup',
-    'ModelEvaluation'
+    'ModelEvaluation',
+    'PreprocessPipeline'
 ]
