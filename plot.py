@@ -241,6 +241,27 @@ class PlotBuilder:
 
         return self
 
+    def create_box_plot(self, title, *args):
+        """
+        Creates a boxplots based on data array (values, label)
+        """
+        sp = self._get_next_plot()
+        to_plot = []
+        labels = []
+        for values, x_label in args:
+            to_plot.append(values)
+            labels.append(x_label)
+
+        bp = plt.boxplot(to_plot, patch_artist=True, vert=True, widths=0.35)
+
+        for patch, color in zip(bp['boxes'], self._get_color(len(labels))):
+            patch.set_facecolor(color)
+
+        sp.set_title(title)
+        sp.legend(bp['boxes'], labels, loc=self._legend_loc)
+
+        return self
+
     def create_images(self, images, titles, **kwargs):
         """
         Creates a grid of images
