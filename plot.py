@@ -300,7 +300,7 @@ class PlotBuilder:
                 title = 'Confusion matrix, without normalization'
 
         # Compute confusion matrix
-        cm = confusion_matrix(y_true, y_pred, labels=np.array(range(len(classes))))
+        cm = confusion_matrix(y_true, y_pred, labels=classes)
 
         if normalize:
             cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
@@ -348,18 +348,18 @@ class PlotBuilder:
         if not plot_mask:
             plot_mask = classes != None
 
-        for i in range(len(classes)):
+        for i, c in enumerate(classes):
             if plot_mask[i]:
-                fpr[i], tpr[i], _ = roc_curve(y_true_labels, y_predicted_scores[:, i], pos_label=i)
+                fpr[i], tpr[i], _ = roc_curve(y_true_labels, y_predicted_scores[:, i], pos_label=c)
                 roc_auc[i] = auc(fpr[i], tpr[i])
 
         # https://datascience.stackexchange.com/questions/15989/micro-average-vs-macro-average-performance-in-a-multiclass-classification-settin
         # Compute micro-average ROC curve and ROC area for all classes
         y_true_micro = np.array([], dtype=np.int32)
         y_scores_micro = np.array([], dtype=np.float64)
-        for i in range(len(classes)):
+        for i, c in enumerate(classes):
             if plot_mask[i]:
-                y_true_micro = np.append(y_true_micro, y_true_labels == i)
+                y_true_micro = np.append(y_true_micro, y_true_labels == c)
                 y_scores_micro = np.append(y_scores_micro, y_predicted_scores[:, i])
 
         fpr["micro"], tpr["micro"], _ = roc_curve(y_true_micro, y_scores_micro)
