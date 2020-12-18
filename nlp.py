@@ -6,6 +6,7 @@ __email__ = "mihai.matei@my.fmi.unibuc.ro"
 
 import nltk
 import numpy as np
+import unidecode
 
 
 class PreprocessPipeline:
@@ -55,7 +56,7 @@ class PreprocessPipeline:
 
     def convert_to_phonames(self):
         arpabet = nltk.corpus.cmudict.dict()
-        self._df['text'] = self._df['text'].apply(lambda s: [arpabet[word][0] for w in s])
+        self._df['text'] = self._df['text'].apply(lambda s: [arpabet[w][0] for w in s])
 
     def build_vocabulary(self, vocab: dict):
         for _, row in self._df.iterrows():
