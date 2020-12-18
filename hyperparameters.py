@@ -60,6 +60,50 @@ class HyperParamsLookup:
             else:
                 self._models.append(model)
 
+    def parallel_grid_search(self, data: ModelDataSet, log=False, num_threads=2, **hyper_space):
+        import concurrent.futures
+
+        hyper_keys = hyper_space.keys()
+        hyper_values = hyper_space.values()
+
+        model_inits = []
+        for hyper_params in itertools.product(*hyper_values):
+            model_init = {}
+            for hyper_key, hyper_val in zip(hyper_keys, hyper_params):
+                model_init[hyper_key] = hyper_val
+
+            model_inits.append(model_init.copy())
+
+        def _train_model(model_init):
+            history = None
+            model = self._model(model_init)
+            history = model.train(data)
+            history.model_params['checkpoint'] = model.checkpoint()
+            print(f"Hyperparameters: {history.model_params}\nResults: {self._performance_callback(history)}")
+            model.destroy()
+            return history
+
+        histories = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(_train_model, model_init) for model_init in model_inits]
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    histories.append(future.result())
+                except Exception as e:
+                    print(f"Exception encountered: {e}")
+
+            executor.shutdown()
+
+        for history in histories:
+            self._history.add_history(history)
+
+            perf = self._performance_callback(history)
+            if perf > self._best_performance:
+                self._best_performance = perf
+                self._best_history = history
+                if history.model_params['checkpoint'] is not None:
+                    copyfile(history.model_params['checkpoint'], self.best_checkpoint)
+
     @property
     def best_params(self):
         return self._best_history.model_params
