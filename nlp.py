@@ -10,10 +10,17 @@ import unidecode
 
 
 class PreprocessPipeline:
+    CACHE = {}
 
-    def __init__(self, df, language):
+    def __init__(self, df, language, vocab={}, copy=True, cache=False):
         self._df = df
+        self._vocab = vocab
+        if cache:
+            self._id = f"{type(self._df)}_{id(self._df)}"
+        if copy:
+            self._df = self._df.copy()
         self._language = language
+        self._cache = cache
 
     def _split_dataframe(self, functor):
         newDF = pd.concat([pd.Series(row['sid'], functor(row['text']))
@@ -41,6 +48,10 @@ class PreprocessPipeline:
         self._df['text'] = self._df['text'].apply(lambda s: [stemmer.stem(w) for w in s])
         return self
 
+    def pos_tag(self):
+        self._df['text'] = self._df['text'].apply(lambda s: [p for w, p in nltk.pos_tag(s)])
+        return self
+
     def remove_punctuation(self):
         self._df['text'] = self._df['text'].apply(lambda s: [w for w in s if w.isalnum()])
         return self
@@ -50,23 +61,34 @@ class PreprocessPipeline:
         return self
 
     def remove_stopwords(self):
+        stopwords = nltk.corpus.stopwords.words(self._language)
         self._df['text'] = self._df['text'].apply(
-            lambda s: [w for w in s if w not in nltk.corpus.stopwords.words(self._language)])
+            lambda s: [w for w in s if w not in stopwords])
+        return self
+
+    def only_stopwords(self):
+        stopwords = nltk.corpus.stopwords.words(self._language)
+        self._df['text'] = self._df['text'].apply(
+            lambda s: [w for w in s if w in stopwords])
         return self
 
     def convert_to_phonames(self):
         arpabet = nltk.corpus.cmudict.dict()
-        self._df['text'] = self._df['text'].apply(lambda s: [arpabet[w][0] for w in s])
-
-    def build_vocabulary(self, vocab: dict):
-        for _, row in self._df.iterrows():
-            for w in row['text']:
-                if w not in vocab:
-                    vocab[w] = len(vocab) + 1
+        # Vowel lexical stress in cmudict: 0 — No stress,  1 — Primary stress, 2 — Secondary stress
+        self._df['text'] = self._df['text'].apply(lambda s: ['_'.join(arpabet[w][0]) for w in s if w in arpabet])
         return self
 
-    def to_vocabulary_ids(self, vocab, default_value=0):
-        self._df['text'] = self._df['text'].apply(lambda s: np.array([vocab.get(w, default_value) for w in s], dtype=np.int))
+    def build_vocabulary(self):
+        if len(self._vocab) > 0:
+            return self
+        for _, row in self._df.iterrows():
+            for w in row['text']:
+                if w not in self._vocab:
+                    self._vocab[w] = len(self._vocab) + 1
+        return self
+
+    def to_vocabulary_ids(self, default_value=0):
+        self._df['text'] = self._df['text'].apply(lambda s: np.array([self._vocab.get(w, default_value) for w in s], dtype=np.int))
         return self
 
     def join_words(self):
@@ -77,10 +99,22 @@ class PreprocessPipeline:
     def DF(self):
         return self._df
 
+    @property
+    def VOCAB(self):
+        return  self._vocab
+
     def process(self, pipeline: list):
+        if self._cache:
+            data_id = f"{self._id}_{' '.join(pipeline)}"
+            if data_id in PreprocessPipeline.CACHE:
+                return PreprocessPipeline.CACHE[data_id]
+
         preprocess = self
         for func_name in pipeline:
             func = getattr(PreprocessPipeline, func_name)
             preprocess = func(preprocess)
+
+        if self._cache:
+            PreprocessPipeline.CACHE[data_id] = self
 
         return self
