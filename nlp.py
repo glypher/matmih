@@ -12,15 +12,14 @@ import unidecode
 class PreprocessPipeline:
     CACHE = {}
 
-    def __init__(self, df, language, vocab={}, copy=True, cache=False):
+    def __init__(self, df, language, vocab={}, copy=True, log=False):
         self._df = df
         self._vocab = vocab
-        if cache:
-            self._id = f"{type(self._df)}_{id(self._df)}"
+        self._log = log
+        self._id = f"{type(self._df)}_{id(self._df)}"
         if copy:
             self._df = self._df.copy()
         self._language = language
-        self._cache = cache
 
     def _split_dataframe(self, functor):
         newDF = pd.concat([pd.Series(row['sid'], functor(row['text']))
@@ -103,18 +102,33 @@ class PreprocessPipeline:
     def VOCAB(self):
         return  self._vocab
 
-    def process(self, pipeline: list):
-        if self._cache:
-            data_id = f"{self._id}_{' '.join(pipeline)}"
-            if data_id in PreprocessPipeline.CACHE:
-                return PreprocessPipeline.CACHE[data_id]
-
+    def _process(self, pipeline:list):
         preprocess = self
         for func_name in pipeline:
             func = getattr(PreprocessPipeline, func_name)
             preprocess = func(preprocess)
+        return preprocess
 
-        if self._cache:
-            PreprocessPipeline.CACHE[data_id] = self
+    def process(self, pipeline: list):
+        preprocess = self
+        cache_ind = [i for i, op in enumerate(pipeline) if op == 'cache']
+        done = []
+        last_cid = 0
+        for cid in cache_ind:
+            to_do = pipeline[last_cid:cid]
+            last_cid = cid+1
+            done += to_do
 
-        return self
+            data_id = f"{self._id}_{'_'.join(done)}"
+            if data_id in PreprocessPipeline.CACHE:
+                if self._log:
+                    print(f'Loading pipeline cached {data_id}...')
+                preprocess = PreprocessPipeline.CACHE[data_id]
+            else:
+                preprocess = self._process(to_do)
+                if self._log:
+                    print(f'Saving to pipeline cache {data_id}...')
+                PreprocessPipeline.CACHE[data_id] = preprocess
+
+        preprocess = preprocess._process(pipeline[last_cid:])
+        return preprocess
