@@ -21,9 +21,10 @@ class HyperParamsLookup:
         self._models = []
         self._best_model = None
         self._best_performance = -1e10
+        self._checkpoints = []
         self._performance_callback = performance_callback
 
-    def grid_search(self, data: ModelDataSet, log=False, destroy_model=True, save_best=False, **hyper_space):
+    def grid_search(self, data: ModelDataSet, log=False, destroy_model=True, save_checkpoints=False, save_best=False, **hyper_space):
         hyper_keys = hyper_space.keys()
         hyper_values = hyper_space.values()
 
@@ -55,6 +56,11 @@ class HyperParamsLookup:
                         self._best_model.destroy()
                     self._best_model = model
 
+            if save_checkpoints and model.checkpoint() is not None:
+                chk_path = f"{self.best_checkpoint}_{len(self._checkpoints)}"
+                copyfile(model.checkpoint(), chk_path)
+                self._checkpoints.append(chk_path)
+
             if destroy_model and self._best_model != model:
                 model.destroy()
             else:
@@ -75,7 +81,6 @@ class HyperParamsLookup:
             model_inits.append(model_init.copy())
 
         def _train_model(model_init):
-            history = None
             model = self._model(model_init)
             history = model.train(data)
             history.model_params['checkpoint'] = model.checkpoint()
@@ -127,3 +132,7 @@ class HyperParamsLookup:
     @property
     def best_checkpoint(self):
         return self._best_checkpoint
+
+    @property
+    def checkpoints(self):
+        return self._checkpoints
