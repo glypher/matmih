@@ -7,15 +7,18 @@ __email__ = "mihai.matei@my.fmi.unibuc.ro"
 import nltk
 import numpy as np
 import unidecode
+import pandas as pd
 
 
 class PreprocessPipeline:
     CACHE = {}
 
-    def __init__(self, df, language, vocab={}, copy=True, log=False):
+    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, max_words=128):
         self._df = df
         self._vocab = vocab
         self._log = log
+        self._custom_split = custom_split
+        self._max_words = max_words
         self._id = f"{type(self._df)}_{id(self._df)}"
         if copy:
             self._df = self._df.copy()
@@ -30,7 +33,20 @@ class PreprocessPipeline:
         return newDF
 
     def split_sentences(self):
-        self._df = self._split_dataframe(nltk.sent_tokenize)
+        if self._custom_split is None:
+            self._df = self._split_dataframe(nltk.sent_tokenize)
+        else:
+            def _tokenize(s):
+                s = nltk.sent_tokenize(s)
+                s = [split  for s1 in s for split in s1.split(self._custom_split)]
+                return s
+            self._df = self._split_dataframe(_tokenize)
+        return self
+
+    def split_max_word_sentences(self):
+        def _chunks(s):
+            return [s[i : i+self._max_words] for i in range(0, len(s), self._max_words)]
+        self._df = self._split_dataframe(_chunks)
         return self
 
     def lower(self):
@@ -38,8 +54,11 @@ class PreprocessPipeline:
         return self
 
     def tokenize(self):
-        self._word_list = True
         self._df['text'] = self._df['text'].apply(lambda s: nltk.word_tokenize(s))
+        return self
+
+    def length(self):
+        self._df['text'] = self._df['text'].apply(lambda s: [len(w) for w in s])
         return self
 
     def stem(self):
