@@ -13,11 +13,12 @@ import pandas as pd
 class PreprocessPipeline:
     CACHE = {}
 
-    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, max_words=128, min_word_count=5):
+    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, min_words=1, max_words=128, min_word_count=5):
         self._df = df
         self._vocab = vocab
         self._log = log
         self._custom_split = custom_split
+        self._min_words = min_words
         self._max_words = max_words
         self._min_word_count = min_word_count
         self._id = f"{type(self._df)}_{id(self._df)}"
@@ -119,6 +120,11 @@ class PreprocessPipeline:
 
     def to_vocabulary_ids(self, default_value=0):
         self._df['text'] = self._df['text'].apply(lambda s: np.array([self._vocab.get(w, default_value) for w in s], dtype=np.int))
+        return self
+
+    def filter_rows(self):
+        self._df['text'] = self._df['text'].apply(lambda s: pd.NA if len(s) < self._min_words else s)
+        self._df = self._df.dropna()
         return self
 
     def remove_pad_ids(self, default_value=0):
