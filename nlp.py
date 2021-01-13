@@ -124,7 +124,7 @@ class PreprocessPipeline:
 
     def filter_rows(self):
         self._df['text'] = self._df['text'].apply(lambda s: pd.NA if len(s) < self._min_words else s)
-        self._df = self._df.dropna()
+        self._df = self._df.dropna().reset_index()
         return self
 
     def remove_pad_ids(self, default_value=0):
