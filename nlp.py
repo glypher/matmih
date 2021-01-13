@@ -13,12 +13,13 @@ import pandas as pd
 class PreprocessPipeline:
     CACHE = {}
 
-    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, max_words=128):
+    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, max_words=128, min_word_count=5):
         self._df = df
         self._vocab = vocab
         self._log = log
         self._custom_split = custom_split
         self._max_words = max_words
+        self._min_word_count = min_word_count
         self._id = f"{type(self._df)}_{id(self._df)}"
         if copy:
             self._df = self._df.copy()
@@ -38,15 +39,16 @@ class PreprocessPipeline:
         else:
             def _tokenize(s):
                 s = nltk.sent_tokenize(s)
-                s = [split  for s1 in s for split in s1.split(self._custom_split)]
+                s = [split for s1 in s for split in s1.split(self._custom_split)]
                 return s
             self._df = self._split_dataframe(_tokenize)
         return self
 
     def split_max_word_sentences(self):
         def _chunks(s):
-            return [s[i : i+self._max_words] for i in range(0, len(s), self._max_words)]
+            return [' '.join(s[i : i+self._max_words]) for i in range(0, len(s), self._max_words)]
         self._df = self._split_dataframe(_chunks)
+        self._df['text'] = self._df['text'].apply(lambda s: s.split(' '))
         return self
 
     def lower(self):
@@ -71,7 +73,7 @@ class PreprocessPipeline:
         return self
 
     def remove_punctuation(self):
-        self._df['text'] = self._df['text'].apply(lambda s: [w for w in s if w.isalnum()])
+        self._df['text'] = self._df['text'].apply(lambda s: [w for w in s if not w.isalnum()])
         return self
 
     def remove_diacritics(self):
@@ -93,20 +95,34 @@ class PreprocessPipeline:
     def convert_to_phonames(self):
         arpabet = nltk.corpus.cmudict.dict()
         # Vowel lexical stress in cmudict: 0 — No stress,  1 — Primary stress, 2 — Secondary stress
-        self._df['text'] = self._df['text'].apply(lambda s: ['_'.join(arpabet[w][0]) for w in s if w in arpabet])
+        self._df['text'] = self._df['text'].apply(lambda s: [arpabet[w][0] for w in s if w in arpabet])
+        self._df['text'] = self._df['text'].apply(lambda s: [w for words in s for w in words])
         return self
 
     def build_vocabulary(self):
         if len(self._vocab) > 0:
             return self
+
+        vocab_count = {}
         for _, row in self._df.iterrows():
             for w in row['text']:
-                if w not in self._vocab:
-                    self._vocab[w] = len(self._vocab) + 1
+                if w not in vocab_count:
+                    vocab_count[w] = 1
+                else:
+                    vocab_count[w] += 1
+
+        for w, count in vocab_count.items():
+            if count > self._min_word_count:
+                self._vocab[w] = len(self._vocab) + 1
+
         return self
 
     def to_vocabulary_ids(self, default_value=0):
         self._df['text'] = self._df['text'].apply(lambda s: np.array([self._vocab.get(w, default_value) for w in s], dtype=np.int))
+        return self
+
+    def remove_pad_ids(self, default_value=0):
+        self._df['text'] = self._df['text'].apply(lambda s: np.array([w for w in s if w != default_value], dtype=np.int))
         return self
 
     def join_words(self):

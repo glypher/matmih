@@ -18,7 +18,7 @@ from .features import ModelDataSet
 class Model(ABC):
     @staticmethod
     def accuracy(true_labels, predicted_labels):
-        return np.sum(true_labels == predicted_labels) / len(true_labels)
+        return sklearn.metrics.accuracy_score(true_labels, predicted_labels)
 
     @staticmethod
     def r2_score(true_values, predicted_values):
