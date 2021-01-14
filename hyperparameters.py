@@ -19,6 +19,7 @@ class HyperParamsLookup:
         self._best_checkpoint = './best_model_' + str(uuid.uuid4()) + '.save'
         self._history = ModelHistorySet()
         self._models = []
+        self._model_inits = []
         self._best_model = None
         self._best_performance = -1e10
         self._checkpoints = []
@@ -64,31 +65,34 @@ class HyperParamsLookup:
             else:
                 self._models.append(model)
 
-    def parallel_grid_search(self, data: ModelDataSet, log=False, num_threads=2, save_checkpoints=False, **hyper_space):
-        import concurrent.futures
-
+    def parallel_grid_search(self, data: ModelDataSet, **hyper_space):
         hyper_keys = hyper_space.keys()
         hyper_values = hyper_space.values()
 
-        model_inits = []
+        self._model_inits = []
         for hyper_params in itertools.product(*hyper_values):
             model_init = {}
             for hyper_key, hyper_val in zip(hyper_keys, hyper_params):
                 model_init[hyper_key] = hyper_val
 
-            model_inits.append(model_init.copy())
+            self._model_inits.append((data, model_init.copy()))
+
+    def parallel_execute(self, log=False, num_threads=2, save_checkpoints=False):
+        import concurrent.futures
 
         def _train_model(model_init):
+            data, model_init = model_init
             model = self._model(model_init)
             history = model.train(data)
             history.model_params['checkpoint'] = model.checkpoint()
-            print(f"Hyperparameters: {history.model_params}\nResults: {self._performance_callback(history)}")
+            if log:
+                print(f"Hyperparameters: {history.model_params}\nResults: {self._performance_callback(history)}")
             model.destroy()
             return history
 
         histories = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
-            futures = [executor.submit(_train_model, model_init) for model_init in model_inits]
+            futures = [executor.submit(_train_model, model_init) for model_init in self._model_inits]
             for future in concurrent.futures.as_completed(futures):
                 try:
                     histories.append(future.result())
