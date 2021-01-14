@@ -17,7 +17,7 @@ from .features import ModelDataSet
 class SklearnModel(Model):
     def __init__(self, model, checkpoint=True):
         self._model = model
-        self._best_weights_path = './best_sklearn_' + str(uuid.uuid4()) + '.bin' if checkpoint else None
+        self._best_weights_path = './model_checkpoint/best_sklearn_' + str(uuid.uuid4()) + '.bin' if checkpoint else None
 
     def save_model(self, path='.', name='sk_model'):
         """ Saves a sklearn model as a python picle object dump
