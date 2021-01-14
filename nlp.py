@@ -21,7 +21,7 @@ class PreprocessPipeline:
         self._min_words = min_words
         self._max_words = max_words
         self._min_word_count = min_word_count
-        self._id = f"{type(self._df)}_{id(self._df)}"
+        self._id = f"{type(self._df)}_{id(self._df)}_{min_words}_{max_words}_{min_word_count}"
         if copy:
             self._df = self._df.copy()
         self._language = language
