@@ -69,7 +69,6 @@ class HyperParamsLookup:
         hyper_keys = hyper_space.keys()
         hyper_values = hyper_space.values()
 
-        self._model_inits = []
         for hyper_params in itertools.product(*hyper_values):
             model_init = {}
             for hyper_key, hyper_val in zip(hyper_keys, hyper_params):
