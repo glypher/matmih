@@ -66,7 +66,7 @@ class HyperParamsLookup:
             else:
                 self._models.append(model)
 
-    def parallel_grid_search(self, data: ModelDataSet, log=False, num_threads=2, **hyper_space):
+    def parallel_grid_search(self, data: ModelDataSet, log=False, num_threads=2, save_checkpoints=False, **hyper_space):
         import concurrent.futures
 
         hyper_keys = hyper_space.keys()
@@ -108,6 +108,9 @@ class HyperParamsLookup:
                 self._best_history = history
                 if history.model_params['checkpoint'] is not None:
                     copyfile(history.model_params['checkpoint'], self.best_checkpoint)
+
+            if save_checkpoints and history.model_params['checkpoint'] is not None:
+                self._checkpoints.append(history.model_params['checkpoint'])
 
     @property
     def best_params(self):
