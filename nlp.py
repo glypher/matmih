@@ -132,7 +132,7 @@ class PreprocessPipeline:
         return self
 
     def join_words(self):
-        self._df['text'] = self._df['text'].apply(lambda s: ''.join([w + ' ' for w in s]))
+        self._df['text'] = self._df['text'].apply(lambda s: ''.join([str(w) + ' ' for w in s]))
         return self
 
     @property
