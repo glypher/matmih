@@ -51,5 +51,4 @@ class SklearnModel(Model):
         return self._best_weights_path
 
     def destroy(self):
-        if self._best_weights_path and os.path.exists(self._best_weights_path):
-            os.remove(self._best_weights_path)
+        pass

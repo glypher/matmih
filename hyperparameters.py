@@ -57,9 +57,7 @@ class HyperParamsLookup:
                     self._best_model = model
 
             if save_checkpoints and model.checkpoint() is not None:
-                chk_path = f"{self.best_checkpoint}_{len(self._checkpoints)}"
-                copyfile(model.checkpoint(), chk_path)
-                self._checkpoints.append(chk_path)
+                self._checkpoints.append(model.checkpoint())
 
             if destroy_model and self._best_model != model:
                 model.destroy()

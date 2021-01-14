@@ -61,8 +61,6 @@ class TensorModel(Model):
         return self._best_weights_path
 
     def destroy(self):
-        if self._best_weights_path and os.path.exists(self._best_weights_path):
-            os.remove(self._best_weights_path)
         tf.keras.backend.clear_session()
         if self._model is not None:
             del self._model
