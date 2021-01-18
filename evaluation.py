@@ -16,6 +16,18 @@ import numpy as np
 from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from prettytable import PrettyTable
 import randomcolor
+import datetime
+import time
+
+
+def benchmark(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        res = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {str(datetime.timedelta(seconds=end - start))}")
+        return res
+    return wrapper
 
 
 class ModelEvaluation:

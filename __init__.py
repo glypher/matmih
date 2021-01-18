@@ -15,7 +15,7 @@ from .image import Image, ImageGenerator
 from .data import DataSet
 from .features import ModelDataSet, DataModel
 from .hyperparameters import HyperParamsLookup
-from .evaluation import ModelEvaluation
+from .evaluation import ModelEvaluation, benchmark
 from .nlp import PreprocessPipeline
 
 __all__ = [
@@ -35,5 +35,6 @@ __all__ = [
     'DataModel',
     'HyperParamsLookup',
     'ModelEvaluation',
-    'PreprocessPipeline'
+    'PreprocessPipeline',
+    'benchmark'
 ]
