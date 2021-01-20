@@ -74,7 +74,7 @@ class PreprocessPipeline:
         return self
 
     def remove_punctuation(self):
-        self._df['text'] = self._df['text'].apply(lambda s: [w for w in s if not w.isalnum()])
+        self._df['text'] = self._df['text'].apply(lambda s: [w for w in s if w.isalnum()])
         return self
 
     def remove_diacritics(self):
