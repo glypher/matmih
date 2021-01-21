@@ -290,8 +290,8 @@ class PlotBuilder:
         This function prints and plots the confusion matrix.
         Normalization can be applied by setting `normalize=True`.
         """
-        fig, ax = plt.subplots(figsize=(8, 8))
-        self.__figures.append(fig)
+        sp = self._get_next_plot()
+        ax = sp.axes
 
         if not title:
             if normalize:
@@ -330,7 +330,7 @@ class PlotBuilder:
                 ax.text(j, i, format(cm[i, j], fmt),
                         ha="center", va="center",
                         color="green" if i == j else "white" if cm[i, j] > thresh else "black")
-        fig.tight_layout()
+        #self.__figures[-1].tight_layout()
 
         return self
 
@@ -370,24 +370,24 @@ class PlotBuilder:
         return self
 
     def __plot_roc_curve(self, fpr, tpr, roc_auc, classes):
-        self.__figures.append(plt.figure(figsize=(15, 15)))
+        sp = self._get_next_plot()
 
         for i, c in enumerate(classes):
             if i in fpr:
-                plt.plot(fpr[i], tpr[i], label='ROC curve [class=%s] (area = %0.2f)' % (c, roc_auc[i]),
+                sp.plot(fpr[i], tpr[i], label='ROC curve [class=%s] (area = %0.2f)' % (c, roc_auc[i]),
                          color=self._get_color(), linewidth=2)
 
         if 'micro' in fpr:
-            plt.plot(fpr['micro'], tpr['micro'], label='ROC curve Micro Average (area = %0.2f)' % roc_auc['micro'],
+            sp.plot(fpr['micro'], tpr['micro'], label='ROC curve Micro Average (area = %0.2f)' % roc_auc['micro'],
                      color='deeppink', linewidth=4, linestyle=':')
         if 'macro' in fpr:
-            plt.plot(fpr['macro'], tpr['macro'], label='ROC curve Macro Average (area = %0.2f)' % roc_auc['macro'],
+            sp.plot(fpr['macro'], tpr['macro'], label='ROC curve Macro Average (area = %0.2f)' % roc_auc['macro'],
                      color='darkorange', linewidth=4, linestyle=':')
 
-        plt.plot([0, 1], [0, 1], color='navy', linewidth=2, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('Recall (False Positive Rate)')
-        plt.ylabel('Precision (True Positive Rate)')
-        plt.title('Receiver operating characteristic')
-        plt.legend(loc=self._legend_loc)
+        sp.plot([0, 1], [0, 1], color='navy', linewidth=2, linestyle='--')
+        sp.set_xlim([0.0, 1.0])
+        sp.set_ylim([0.0, 1.05])
+        sp.set_xlabel('Recall (False Positive Rate)')
+        sp.set_ylabel('Precision (True Positive Rate)')
+        sp.set_title('Receiver operating characteristic')
+        sp.legend(loc=self._legend_loc)
