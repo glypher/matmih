@@ -8,6 +8,7 @@ __email__ = "mihai.matei@my.fmi.unibuc.ro"
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
 import randomcolor
 import math
@@ -280,6 +281,22 @@ class PlotBuilder:
             sp.axes.get_yaxis().set_visible(False)
             sp.grid(None)
         plt.tight_layout()
+
+        return self
+
+    def create_heatmap(self, df, title, **kwargs):
+        """
+        Creates heatmap from a pandas dataframe
+        """
+        sns.set()
+        sp = self._get_next_plot()
+        sp.set_title(title)
+
+        ax = sp.axes
+        sns.heatmap(df, ax=ax, **kwargs)
+
+        plt.setp(ax.get_yticklabels(), rotation=360, horizontalalignment='right')
+        plt.setp(ax.get_xticklabels(), rotation=45, horizontalalignment='right')
 
         return self
 
