@@ -6,6 +6,7 @@ __email__ = "mihai.matei@my.fmi.unibuc.ro"
 
 import numpy as np
 import pandas as pd
+import dill
 import random
 import time
 from sklearn.model_selection import train_test_split
@@ -158,3 +159,16 @@ class DataSet:
     @property
     def class_ids(self):
         return self._classIds
+
+
+class StoreLocal:
+    def __init__(self, path):
+        self._path = path
+
+    def save(self, obj):
+        with open(self._path, "wb") as f:
+            dill.dump(obj, f)
+
+    def load(self):
+        with open(self._path, "rb") as f:
+            return dill.load(f)

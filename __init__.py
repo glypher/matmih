@@ -12,7 +12,7 @@ from .model import Model, DataType, ModelHistory, ModelHistorySet, RandomClassif
 from .tensorflow import TensorBoard, TensorModel
 from .sklearn import SklearnModel
 from .image import Image, ImageGenerator
-from .data import DataSet
+from .data import DataSet, StoreLocal
 from .features import ModelDataSet, DataModel
 from .hyperparameters import HyperParamsLookup
 from .evaluation import ModelEvaluation, benchmark
@@ -31,6 +31,7 @@ __all__ = [
     'Image',
     'ImageGenerator',
     'DataSet',
+    'StoreLocal',
     'ModelDataSet',
     'DataModel',
     'HyperParamsLookup',
