@@ -73,16 +73,16 @@ class ModelHistory:
     def model_params(self):
         return self._model_params
 
-    def history(self, metric, type : DataType):
+    def history(self, metric, data_type: DataType):
         try:
-            if type == DataType.TRAIN:
+            if data_type == DataType.TRAIN:
                 return self._history[metric]
-            if type == DataType.VALIDATION:
+            if data_type == DataType.VALIDATION:
                 return self._history['val_' + metric]
-            if type == DataType.TEST:
+            if data_type == DataType.TEST:
                 return self._history['test_' + metric]
         except:
-            return None
+            return [0]
 
 
 class ModelHistorySet:
@@ -104,10 +104,17 @@ class ModelHistorySet:
 
         return histories
 
-    def same_histories(self, params: list):
+    def same_histories(self, params: list, values={}):
         histories = {}
         for h in self._histories:
-            p = ''.join(['{}={} '.format(k, h.model_params[k]) for k in params])
+            all_ok = True
+            for k, v in values.items():
+                if k in h.model_params and h.model_params[k] != v:
+                    all_ok = False
+                    break
+            if not all_ok:
+                continue
+            p = ''.join(['{}={} '.format(k, h.model_params[k]) if k in h.model_params else '' for k in params])
             same = histories.get(p, [])
             same.append(h)
             histories[p] = same

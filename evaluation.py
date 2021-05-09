@@ -33,39 +33,56 @@ def benchmark(func):
 class ModelEvaluation:
     def __init__(self, models: ModelHistorySet):
         self._models = models
-        self._filter_params = set()
+        self._filter_params = []
+        self._filter_values = {}
         self._p_threshold = 0.01
 
-    def set_filter_params(self, params):
-        self._filter_params = set(params)
+    def set_filter_params(self, params:list):
+        self._filter_params = params
+        return self
+
+    def set_filter_values(self, **params):
+        self._filter_values = params
         return self
 
     def set_p_threshold(self, p):
         self._p_threshold = p
         return self
 
-    def plot_distributions(self, metric, data_type: DataType, metric_func=lambda x: max(x)):
+    def plot_distributions(self, metric, data_type: DataType, title, metric_func=lambda x: max(x)):
         """Plot the distribution of all models
         Get all models with the same parameter that represents multiple train runs
         Apply the metric function to get the corresponding metric from each (e.x. max accuracy)"""
         data = []
-        for params, histories in self._models.same_histories(self._filter_params).items():
+        for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
             for h in histories:
                 data.append([params, metric_func(h.history(metric, data_type))])
         name = "{}_{}".format(data_type.name, metric)
-        sns.displot(pd.DataFrame(data, columns=['type', name]),
-                    x=name, hue="type", kde=True)
+        sns.displot(pd.DataFrame(data, columns=[title, name]),
+                    x=name, hue=title, kde=True)
 
-    def paired_statistical_test(self, metric, data_type: DataType, metric_func=lambda x: max(x)):
+    def results(self, metric, data_type: DataType, metric_func=lambda x: max(x)):
+        """Get all models with the same parameter that represents multiple train runs
+        Apply the metric function to get the corresponding metric from each (e.x. max accuracy)"""
+        result = {}
+        for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
+            data = []
+            for h in histories:
+                data.append(metric_func(h.history(metric, data_type)))
+            result[params] = data
+
+        return result
+
+    def paired_statistical_test(self, metric, data_type: DataType, title, metric_func=lambda x: max(x)):
         models = {}
-        for params, histories in self._models.same_histories(self._filter_params).items():
+        for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
             for h in histories:
                 data = models.get(params, [])
                 data.append(metric_func(h.history(metric, data_type)))
                 models[params] = data
 
         table = PrettyTable(["Model", "Shapiro-Wilk p-value", "Normal distributed"],
-                            title="Normality of {} on {} data".format(metric, data_type.name))
+                            title="Normality of {metric} on {data_type.name} data {title}")
         # first do a shapiro-wilk normality test for each data
         normal_model = {}
         for model, data in models.items():
@@ -75,12 +92,12 @@ class ModelEvaluation:
         print(table)
 
         table = PrettyTable(["Model 1", "Model 2", "t-test p-value", "t-test", "Normality",
-                             "Wilcoxon p-value", "Wilcoxon"],
-                            title="Paired statistical tests evaluation of {} on {} data".format(metric, data_type.name))
+                             "Wilcoxon p-value", "Wilcoxon", f"Model1 vs Model2 {metric}"],
+                            title=f"Paired statistical tests evaluation of {metric} on {data_type.name} data {title}")
         # now do a paired student t-test and wilcoxon signed-rank test for all pairs
         for model1, data1 in models.items():
             for model2, data2 in models.items():
-                if model1 == model2:
+                if model1 >= model2:
                     continue
                 _, p_s = stats.ttest_rel(data1, data2)
                 _, p_w = stats.wilcoxon(data1, data2)
@@ -88,13 +105,14 @@ class ModelEvaluation:
                 table.add_row([model1, model2, "{:.4}".format(p_s),
                                'YES' if p_s < self._p_threshold else 'NO',
                                'YES' if normal_model[model1] and normal_model[model2] else 'NO',
-                               "{:.4}".format(p_w), 'YES' if p_w < self._p_threshold else 'NO'])
+                               "{:.4}".format(p_w), 'YES' if p_w < self._p_threshold else 'NO',
+                              f"better" if np.average(data1) > np.average(data2) else "worse"])
 
         print(table)
 
-    def oneway_anova_test(self, metric, data_type: DataType, metric_func=lambda x: max(x)):
+    def oneway_anova_test(self, metric, data_type: DataType, title, metric_func=lambda x: max(x)):
         models = {}
-        for params, histories in self._models.same_histories(self._filter_params).items():
+        for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
             for h in histories:
                 data = models.get(params, [])
                 data.append(metric_func(h.history(metric, data_type)))
@@ -103,15 +121,15 @@ class ModelEvaluation:
         # Anova requires equal variance - do Bartlet test
         _, p = stats.bartlett(*models.values())
         _, p_a = stats.f_oneway(*models.values())
-        table = PrettyTable(['Bartlett p-value', 'Equal variance', 'Oneway Anova p-value', 'Equal means'],
-                            title='{} on {}'.format(metric, data_type.name))
-        table.add_row([p, 'NO' if p < self._p_threshold else 'YES',
-                       p_a, 'NO' if p_a < self._p_threshold else 'YES'])
+        table = PrettyTable(['Bartlett p-value', 'H0=Equal variance', 'Oneway Anova p-value', 'H0=Equal means'],
+                            title=f'{metric} on {data_type.name} {title}')
+        table.add_row([p, 'NO' if p < self._p_threshold else 'YES(not sure)',
+                       p_a, 'NO' if p_a < self._p_threshold else 'YES(not sure)'])
         print(table)
 
-    def tukey_hsd_test(self, metric, data_type: DataType, metric_func=lambda x: max(x)):
+    def tukey_hsd_test(self, metric, data_type: DataType, title, metric_func=lambda x: max(x)):
         models = {}
-        for params, histories in self._models.same_histories(self._filter_params).items():
+        for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
             for h in histories:
                 data = models.get(params, [])
                 data.append(metric_func(h.history(metric, data_type)))
