@@ -73,7 +73,7 @@ class ModelEvaluation:
 
         return result
 
-    def paired_statistical_test(self, metric, data_type: DataType, title, metric_func=lambda x: max(x)):
+    def paired_statistical_test(self, metric, data_type: DataType, title, metric_func=lambda x: max(x), wilcoxon=False):
         models = {}
         for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
             for h in histories:
@@ -91,22 +91,28 @@ class ModelEvaluation:
             table.add_row([model, "{:.4}".format(p), 'NO' if p < self._p_threshold else 'YES'])
         print(table)
 
-        table = PrettyTable(["Model 1", "Model 2", "t-test p-value", "t-test", "Normality",
-                             "Wilcoxon p-value", "Wilcoxon", f"Model1 vs Model2 {metric}"],
-                            title=f"Paired statistical tests evaluation of {metric} on {data_type.name} data {title}")
+        columns = ["Model 1", "Model 2", "p-value", "t-test", "Normal", f"Model1 vs Model2"]
+        if wilcoxon:
+            columns += ["Wilcoxon p-value", "Wilcoxon"]
+        table = PrettyTable(columns,
+                            title=f"Paired t-test statistical evaluation of {metric} on {data_type.name} data {title}")
         # now do a paired student t-test and wilcoxon signed-rank test for all pairs
         for model1, data1 in models.items():
             for model2, data2 in models.items():
                 if model1 >= model2:
                     continue
                 _, p_s = stats.ttest_rel(data1, data2)
-                _, p_w = stats.wilcoxon(data1, data2)
+                if wilcoxon:
+                    _, p_w = stats.wilcoxon(data1, data2)
 
-                table.add_row([model1, model2, "{:.4}".format(p_s),
+                data = [model1, model2, "{:.4}".format(p_s),
                                'YES' if p_s < self._p_threshold else 'NO',
                                'YES' if normal_model[model1] and normal_model[model2] else 'NO',
-                               "{:.4}".format(p_w), 'YES' if p_w < self._p_threshold else 'NO',
-                              f"better" if np.average(data1) > np.average(data2) else "worse"])
+                              f"better" if np.average(data1) > np.average(data2) else "worse"]
+                if wilcoxon:
+                    data += ["{:.4}".format(p_w), 'YES' if p_w < self._p_threshold else 'NO']
+
+                table.add_row(data)
 
         print(table)
 
@@ -135,7 +141,7 @@ class ModelEvaluation:
                 data.append(metric_func(h.history(metric, data_type)))
                 models[params] = data
 
-        data_arr = np.hstack(models.values())
+        data_arr = np.hstack(list(models.values()))
         data_group = np.repeat(list(models.keys()), len(data_arr) / len(models))
         res = pairwise_tukeyhsd(data_arr, data_group)
         print(res)
