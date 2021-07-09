@@ -65,7 +65,8 @@ class PlotBuilder:
         self._subplot_size = [1, 1]
 
     def same(self):
-        self._next_plot = False
+        if self._current_subplot:
+            self._next_plot = False
 
         return self
 
