@@ -16,7 +16,7 @@ class HyperParamsLookup:
     def __init__(self, model, performance_callback):
         self._model = model
         self._best_history = None
-        self._best_checkpoint = './best_model_' + str(uuid.uuid4()) + '.save'
+        self._best_checkpoint = None
         self._history = ModelHistorySet()
         self._models = []
         self._model_inits = []
@@ -49,16 +49,16 @@ class HyperParamsLookup:
             if perf > self._best_performance:
                 self._best_performance = perf
                 self._best_history = history
-                if model.checkpoint() is not None:
-                    copyfile(model.checkpoint(), self.best_checkpoint)
+                if model.checkpoint is not None:
+                    self._best_checkpoint = model.checkpoint
 
                 if save_best:
                     if self._best_model and destroy_model:
                         self._best_model.destroy()
                     self._best_model = model
 
-            if save_checkpoints and model.checkpoint() is not None:
-                self._checkpoints.append(model.checkpoint())
+            if save_checkpoints and model.checkpoint is not None:
+                self._checkpoints.append(model.checkpoint)
 
             if destroy_model and self._best_model != model:
                 model.destroy()

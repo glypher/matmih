@@ -18,9 +18,9 @@ from .features import ModelDataSet
 
 
 class TensorModel(Model):
-    def __init__(self, model, checkpoint=True):
+    def __init__(self, model, checkpoint='h5', name=''):
         self._model = model
-        self._best_weights_path = './model_checkpoint/best_epoch_weights_' + str(uuid.uuid4()) + '.h5' if checkpoint else None
+        self._checkpoint = f'./model_checkpoint/{name}.{str(uuid.uuid4())}.{checkpoint}' if checkpoint else None
 
     def save_model(self, path='./model_checkpoint', name='tf_model'):
         """ Saves a tensor flow model configuration and weights
@@ -49,16 +49,13 @@ class TensorModel(Model):
     def train(self, data_set: ModelDataSet, log=False):
         pass
 
-    @property
-    def best_weights_path(self):
-        return self._best_weights_path
-
     def predict(self, features):
         features_ds = tf.cast(features, tf.float32)
         return self.model.predict_classes(features_ds), self.model.predict(features_ds)
 
+    @property
     def checkpoint(self):
-        return self._best_weights_path
+        return self._checkpoint
 
     def destroy(self):
         tf.keras.backend.clear_session()
