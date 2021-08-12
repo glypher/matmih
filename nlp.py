@@ -14,16 +14,22 @@ class PreprocessPipeline:
     CACHE = {}
 
     def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, min_words=1,
-                 max_words=128, min_word_count=5, column_name='text'):
+                 max_words=128, min_word_count=5, column_name='text', mask_column='attention_mask',
+                 padding=128, padding_id=0, end_token_id=1):
         self._df = df
-        self._vocab = vocab
+        self._vocab = vocab.copy()
         self._log = log
         self._custom_split = custom_split
         self._min_words = min_words
         self._max_words = max_words
         self._min_word_count = min_word_count
         self._column_name = column_name
-        self._id = f"{type(self._df)}_{id(self._df)}_{min_words}_{max_words}_{min_word_count}_{column_name}"
+        self._mask_column = mask_column
+        self._padding = padding
+        self._padding_id = padding_id
+        self._end_token_id = end_token_id
+        self._id = f"{type(self._df)}_{id(self._df)}_{min_words}_{max_words}_{min_word_count}_{column_name}_{mask_column}_{padding}_{padding_id}_{end_token_id}"
+        assert end_token_id > padding_id, 'End token id > padding id'
         if copy:
             self._df = self._df.copy()
         self._language = language
@@ -107,9 +113,6 @@ class PreprocessPipeline:
         return self
 
     def build_vocabulary(self):
-        if len(self._vocab) > 0:
-            return self
-
         vocab_count = {}
         for _, row in self._df.iterrows():
             for w in row[self._column_name]:
@@ -118,14 +121,38 @@ class PreprocessPipeline:
                 else:
                     vocab_count[w] += 1
 
+        self._vocab['<p>'] = self._padding_id
+        self._vocab['<eos>'] = self._end_token_id
+        ids = max(self._vocab.values())
         for w, count in vocab_count.items():
-            if count > self._min_word_count:
-                self._vocab[w] = len(self._vocab) + 1
+            if w not in self._vocab and count > self._min_word_count:
+                ids += 1
+                self._vocab[w] = ids
 
         return self
 
     def to_vocabulary_ids(self, default_value=0):
         self._df[self._column_name] = self._df[self._column_name].apply(lambda s: np.array([self._vocab.get(w, default_value) for w in s], dtype=np.int))
+        return self
+
+    def add_mask(self):
+        self._df[self._mask_column] = self._df[self._column_name].apply(lambda s: np.ones_like(s))
+        return self
+
+    def add_end_token(self):
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: np.concatenate((s, [self._end_token_id])))
+        if self._mask_column in self._df:
+            self._df[self._mask_column] = self._df[self._mask_column].apply(lambda s: np.concatenate((s, [1])))
+        return self
+
+    def padding(self):
+        self._df[self._column_name] = self._df[self._column_name].apply(
+            lambda s: np.pad(s, (0, self._padding - len(s)), constant_values=self._padding_id)
+            if len(s) < self._padding else np.resize(s, self._padding))
+        if self._mask_column in self._df:
+            self._df[self._mask_column] = self._df[self._mask_column].apply(
+                lambda s: np.pad(s, (0, self._padding - len(s)), constant_values=0)
+                if len(s) < self._padding else np.resize(s, self._padding))
         return self
 
     def filter_rows(self):
