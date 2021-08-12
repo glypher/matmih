@@ -13,7 +13,8 @@ import pandas as pd
 class PreprocessPipeline:
     CACHE = {}
 
-    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, min_words=1, max_words=128, min_word_count=5):
+    def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, min_words=1,
+                 max_words=128, min_word_count=5, column_name='text'):
         self._df = df
         self._vocab = vocab
         self._log = log
@@ -21,15 +22,16 @@ class PreprocessPipeline:
         self._min_words = min_words
         self._max_words = max_words
         self._min_word_count = min_word_count
-        self._id = f"{type(self._df)}_{id(self._df)}_{min_words}_{max_words}_{min_word_count}"
+        self._column_name = column_name
+        self._id = f"{type(self._df)}_{id(self._df)}_{min_words}_{max_words}_{min_word_count}_{column_name}"
         if copy:
             self._df = self._df.copy()
         self._language = language
 
     def _split_dataframe(self, functor):
-        newDF = pd.concat([pd.Series(row['sid'], functor(row['text']))
+        newDF = pd.concat([pd.Series(row['sid'], functor(row[self._column_name]))
                            for _, row in self._df.iterrows()]).reset_index()
-        newDF = newDF.rename(columns={'index': "text", 0: "sid"})
+        newDF = newDF.rename(columns={'index': self._column_name, 0: "sid"})
         newDF = newDF.merge(self._df[['target', 'sid']], on="sid", how='inner')
 
         return newDF
@@ -49,55 +51,59 @@ class PreprocessPipeline:
         def _chunks(s):
             return [' '.join(s[i : i+self._max_words]) for i in range(0, len(s), self._max_words)]
         self._df = self._split_dataframe(_chunks)
-        self._df['text'] = self._df['text'].apply(lambda s: s.split(' '))
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: s.split(' '))
         return self
 
     def lower(self):
-        self._df['text'] = self._df['text'].apply(lambda s: s.lower())
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: s.lower())
         return self
 
     def tokenize(self):
-        self._df['text'] = self._df['text'].apply(lambda s: nltk.word_tokenize(s))
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: nltk.word_tokenize(s))
+        return self
+
+    def tokenize_char(self):
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [c for c in s])
         return self
 
     def length(self):
-        self._df['text'] = self._df['text'].apply(lambda s: [len(w) for w in s])
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [len(w) for w in s])
         return self
 
     def stem(self):
         stemmer = nltk.SnowballStemmer(self._language)
-        self._df['text'] = self._df['text'].apply(lambda s: [stemmer.stem(w) for w in s])
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [stemmer.stem(w) for w in s])
         return self
 
     def pos_tag(self):
-        self._df['text'] = self._df['text'].apply(lambda s: [p for w, p in nltk.pos_tag(s)])
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [p for w, p in nltk.pos_tag(s)])
         return self
 
     def remove_punctuation(self):
-        self._df['text'] = self._df['text'].apply(lambda s: [w for w in s if w.isalnum()])
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [w for w in s if w.isalnum()])
         return self
 
     def remove_diacritics(self):
-        self._df['text'] = self._df['text'].apply(unidecode.unidecode)
+        self._df[self._column_name] = self._df[self._column_name].apply(unidecode.unidecode)
         return self
 
     def remove_stopwords(self):
         stopwords = nltk.corpus.stopwords.words(self._language)
-        self._df['text'] = self._df['text'].apply(
+        self._df[self._column_name] = self._df[self._column_name].apply(
             lambda s: [w for w in s if w not in stopwords])
         return self
 
     def only_stopwords(self):
         stopwords = nltk.corpus.stopwords.words(self._language)
-        self._df['text'] = self._df['text'].apply(
+        self._df[self._column_name] = self._df[self._column_name].apply(
             lambda s: [w for w in s if w in stopwords])
         return self
 
     def convert_to_phonames(self):
         arpabet = nltk.corpus.cmudict.dict()
         # Vowel lexical stress in cmudict: 0 — No stress,  1 — Primary stress, 2 — Secondary stress
-        self._df['text'] = self._df['text'].apply(lambda s: [arpabet[w][0] for w in s if w in arpabet])
-        self._df['text'] = self._df['text'].apply(lambda s: [w for words in s for w in words])
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [arpabet[w][0] for w in s if w in arpabet])
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: [w for words in s for w in words])
         return self
 
     def build_vocabulary(self):
@@ -106,7 +112,7 @@ class PreprocessPipeline:
 
         vocab_count = {}
         for _, row in self._df.iterrows():
-            for w in row['text']:
+            for w in row[self._column_name]:
                 if w not in vocab_count:
                     vocab_count[w] = 1
                 else:
@@ -119,20 +125,20 @@ class PreprocessPipeline:
         return self
 
     def to_vocabulary_ids(self, default_value=0):
-        self._df['text'] = self._df['text'].apply(lambda s: np.array([self._vocab.get(w, default_value) for w in s], dtype=np.int))
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: np.array([self._vocab.get(w, default_value) for w in s], dtype=np.int))
         return self
 
     def filter_rows(self):
-        self._df['text'] = self._df['text'].apply(lambda s: pd.NA if len(s) < self._min_words else s)
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: pd.NA if len(s) < self._min_words else s)
         self._df = self._df.dropna().reset_index()
         return self
 
     def remove_pad_ids(self, default_value=0):
-        self._df['text'] = self._df['text'].apply(lambda s: np.array([w for w in s if w != default_value], dtype=np.int))
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: np.array([w for w in s if w != default_value], dtype=np.int))
         return self
 
     def join_words(self):
-        self._df['text'] = self._df['text'].apply(lambda s: ''.join([str(w) + ' ' for w in s]))
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: ''.join([str(w) + ' ' for w in s]))
         return self
 
     @property
@@ -141,7 +147,7 @@ class PreprocessPipeline:
 
     @property
     def VOCAB(self):
-        return  self._vocab
+        return self._vocab
 
     def _process(self, pipeline:list):
         preprocess = self
