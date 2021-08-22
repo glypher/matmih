@@ -118,10 +118,16 @@ class PlotBuilder:
             if isinstance(data, list):
                 i = 0
                 for y_values in data:
+                    try:
+                        y_values, y_title = y_values
+                        has_legend = True
+                    except:
+                        y_title = 'none_' + str(i)
+
                     i += 1
                     limits[1][0] = min(limits[1][0], np.min(y_values))
                     limits[1][1] = max(limits[1][1], np.max(y_values))
-                    sp.plot(x_values[0:len(y_values)], y_values, color=color, linewidth=2,
+                    sp.plot(x_values[0:len(y_values)], y_values, label=y_title, color=color, linewidth=2,
                             linestyle='--' if i % 2 else '-', **self._options)
             else:
                 has_legend = True

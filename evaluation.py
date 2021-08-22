@@ -148,25 +148,40 @@ class ModelEvaluation:
 
     def plot_history(self, title, metrics: list, **params):
         data = []
-        histories = self._models.filter_histories(**params)
+        epochs = 0
         for metric in metrics:
-            train = [h.history(metric, DataType.TRAIN) for h in histories]
-            val = [h.history(metric, DataType.VALIDATION) for h in histories]
             metric_list = []
-            for u, v in zip(train, val):
-                if u is not None and v is not None:
-                    metric_list.append([u, v])
-                elif u is None:
-                    metric_list.append([v])
-                elif v is None:
-                    metric_list.append([u])
+            for params, histories in self._models.same_histories(self._filter_params, self._filter_values).items():
+                train = [h.history(metric, DataType.TRAIN) for h in histories]
+                val = [h.history(metric, DataType.VALIDATION) for h in histories]
+                if params:
+                    for u, v in zip(train, val):
+                        if u is not None and v is not None:
+                            metric_list.append([(u, params), (v, params)])
+                        elif u is None:
+                            metric_list.append([(v, params)])
+                        elif v is None:
+                            metric_list.append([(u, params)])
+                    epochs = max(epochs, len(metric_list[0][0][0]))
+                else:
+                    for u, v in zip(train, val):
+                        if u is not None and v is not None:
+                            metric_list.append([u, v])
+                        elif u is None:
+                            metric_list.append([v])
+                        elif v is None:
+                            metric_list.append([u])
+                    epochs = max(epochs, len(metric_list[0][0]))
 
             data.append(metric_list)
-        epochs = max([len(data[0][i][0]) for i in range(len(histories))])
 
         pb = PlotBuilder().create_subplots(len(metrics), 2, fig_size=(18, 12))
         pb.set_options(color=randomcolor.RandomColor().generate(count=len(data[0])) * len(metrics))
         for i, metric in enumerate(metrics):
+            if metric == 'loss':
+                pb.set_options(legend_loc='lower left')
+            else:
+                pb.set_options(legend_loc='upper left')
             pb.create_plot('Training and Validation {} - '.format(metric) + title,
                            (range(epochs), 'epoch'),
                            *data[i])
