@@ -15,7 +15,7 @@ class PreprocessPipeline:
 
     def __init__(self, df, language, vocab={}, copy=True, log=False, custom_split=None, min_words=1,
                  max_words=128, min_word_count=5, column_name='text', mask_column='attention_mask',
-                 padding=128, padding_id=0, end_token_id=1):
+                 padding=128, padding_id=0, start_token_id=1, end_token_id=2):
         self._df = df
         self._vocab = vocab.copy()
         self._log = log
@@ -28,6 +28,7 @@ class PreprocessPipeline:
         self._padding = padding
         self._padding_id = padding_id
         self._end_token_id = end_token_id
+        self._start_token_id = start_token_id
         self._id = f"{type(self._df)}_{id(self._df)}_{min_words}_{max_words}_{min_word_count}_{column_name}_{mask_column}_{padding}_{padding_id}_{end_token_id}"
         assert end_token_id > padding_id, 'End token id > padding id'
         if copy:
@@ -121,8 +122,10 @@ class PreprocessPipeline:
                 else:
                     vocab_count[w] += 1
 
-        self._vocab['<p>'] = self._padding_id
-        self._vocab['<eos>'] = self._end_token_id
+        if len(self._vocab) == 0:
+            self._vocab['<p>'] = self._padding_id
+            self._vocab['<cls>'] = self._start_token_id
+            self._vocab['<end>'] = self._end_token_id
         ids = max(self._vocab.values())
         for w, count in vocab_count.items():
             if w not in self._vocab and count > self._min_word_count:
@@ -137,6 +140,12 @@ class PreprocessPipeline:
 
     def add_mask(self):
         self._df[self._mask_column] = self._df[self._column_name].apply(lambda s: np.ones_like(s))
+        return self
+
+    def add_start_token(self):
+        self._df[self._column_name] = self._df[self._column_name].apply(lambda s: np.concatenate(([self._start_token_id], s)))
+        if self._mask_column in self._df:
+            self._df[self._mask_column] = self._df[self._mask_column].apply(lambda s: np.concatenate(([1], s)))
         return self
 
     def add_end_token(self):
